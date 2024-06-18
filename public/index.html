@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Fictional Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Including Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        /* Setting the height and width of the map container */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+        /* Custom marker style */
+        .custom-marker {
+            background-color: red;
+            border-radius: 50%;
+            width: 10px;
+            height: 10px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div> <!-- The div where the map will be rendered -->
+
+    <!-- Including Leaflet JavaScript library -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Including jQuery for handling AJAX requests -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            console.log("Document is ready.");
+
+            // Initialize the map with a custom coordinate system
+            var map = L.map('map', {
+                crs: L.CRS.Simple, // Use simple CRS for custom images
+                minZoom: -5        // Allow zooming out beyond the image size
+            }).fitBounds([[0, 0], [5462, 8192]]); // Set bounds to match the image dimensions
+
+            // URL of the custom image to use as the map background
+            var imageUrl = '/Aramantha.png'; // Replace with the path to your image
+            console.log("Loading image:", imageUrl);
+
+            // Add the image overlay to the map, setting its bounds to the image dimensions
+            L.imageOverlay(imageUrl, [[0, 0], [5462, 8192]]).addTo(map).on('load', function() {
+                console.log("Image loaded successfully.");
+            }).on('error', function() {
+                console.error("Error loading image.");
+            });
+
+            // Function to add a marker to the map
+            function addMarker(lat, lng, message, id) {
+                var icon = L.divIcon({
+                    className: 'custom-marker',
+                    iconSize: [10, 10] // Size of the icon
+                });
+
+                // Create a new marker at the specified latitude and longitude
+                var marker = L.marker([lat, lng], { icon: icon }).addTo(map);
+
+                // HTML content for the popup
+                var popupContent = `
+                    <div>
+                        <p>${message}</p>
+                        <button onclick="deleteMarker(${lat}, ${lng}, '${id}')">Delete</button>
+                    </div>
+                `;
+
+                // Bind a popup to the marker with the specified message
+                marker.bindPopup(popupContent);
+                console.log("Marker added at:", lat, lng);
+            }
+
+            // Fetch existing markers from the server and add them to the map
+            $.getJSON('/markers', function(data) {
+                console.log("Markers fetched:", data);
+                // Iterate over the array of markers received from the server
+                data.forEach(function(marker) {
+                    // Add each marker to the map with its stored latitude, longitude, and message
+                    addMarker(marker.lat, marker.lng, marker.message, marker.id);
+                });
+            }).fail(function(jqxhr, textStatus, error) {
+                console.error("Error fetching markers:", textStatus, error);
+            });
+
+            // Event listener for map clicks to add new markers
+            map.on('click', function(e) {
+                var lat = e.latlng.lat;
+                var lng = e.latlng.lng;
+
+                var message = prompt("Enter marker text:", "New marker at " + e.latlng.toString());
+
+                if (message !== null) {
+                    // Generate a unique ID for the marker
+                    var id = Date.now().toString();
+                    addMarker(lat, lng, message, id);
+
+                    // Save the new marker to the server
+                    $.post('/add-marker', { id: id, lat: lat, lng: lng, message: message })
+                        .done(function() {
+                            console.log("Marker saved:", { id: id, lat: lat, lng: lng, message: message });
+                        })
+                        .fail(function(jqxhr, textStatus, error) {
+                            console.error("Error saving marker:", textStatus, error);
+                        });
+                }
+            });
+
+            // Function to delete a marker
+            window.deleteMarker = function(lat, lng, id) {
+                if (confirm("Are you sure you want to delete this marker?")) {
+                    // Remove the marker from the map
+                    map.eachLayer(function(layer) {
+                        if (layer instanceof L.Marker && layer.getLatLng().lat === lat && layer.getLatLng().lng === lng) {
+                            map.removeLayer(layer);
+                        }
+                    });
+
+                    // Send a request to delete the marker from the server
+                    $.post('/delete-marker', { id: id })
+                        .done(function() {
+                            console.log("Marker deleted:", { id: id });
+                        })
+                        .fail(function(jqxhr, textStatus, error) {
+                            console.error("Error deleting marker:", textStatus, error);
+                        });
+                }
+            };
+        });
+    </script>
+</body>
+</html>
