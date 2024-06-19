@@ -24,10 +24,10 @@
         }
         /* Custom marker style */
         .custom-marker {
-            background-color: red;
+            background-color: rgb(199, 226, 120);
             border-radius: 50%;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             display: block;
         }
     </style>
@@ -46,7 +46,7 @@
             // Initialize the map with a custom coordinate system
             var map = L.map('map', {
                 crs: L.CRS.Simple, // Use simple CRS for custom images
-                minZoom: -5        // Allow zooming out beyond the image size
+                minZoom: -4.5        // Allow zooming out beyond the image size
             }).fitBounds([[0, 0], [5462, 8192]]); // Set bounds to match the image dimensions
 
             // URL of the custom image to use as the map background
